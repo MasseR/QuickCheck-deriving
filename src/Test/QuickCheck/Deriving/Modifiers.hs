@@ -1,1 +1,1 @@
-module Test.QuickCheck.Deriving.Modifiers where
+module Test.QuickCheck.Deriving.Modifiers () where
