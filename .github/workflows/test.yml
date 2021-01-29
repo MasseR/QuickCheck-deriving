@@ -10,6 +10,7 @@ jobs:
     - uses: cachix/install-nix-action@v12
     - run: nix build -I nixpkgs=channel:nixos-${{ matrix.env }} -f ci.nix
     - run: nix-shell -I nixpkgs=channel:nixos-20.09 -p 'stylish-haskell' --run ./restyle.sh
+    - run: nix-shell -I nixpkgs=channel:nixos-20.09 -p 'cabal2nix' --run ./renix.sh
     strategy:
       matrix:
         env: [20.03, 20.09, unstable]
