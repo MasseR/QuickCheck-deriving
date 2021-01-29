@@ -23,7 +23,8 @@ data Person
 @
 -}
 module Test.QuickCheck.Deriving
-  ( Isomorphic(..) )
+  ( Isomorphic(..)
+  )
   where
 
 import GHC.Generics
