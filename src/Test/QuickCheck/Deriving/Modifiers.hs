@@ -18,6 +18,7 @@ Modifiers for QuickCheck generation
 module Test.QuickCheck.Deriving.Modifiers
   ( PrintableText(..)
   , Corpus(..)
+  , Range(..)
   )
   where
 
@@ -77,7 +78,8 @@ instance (FromCorpus corpus) => Arbitrary (Corpus corpus) where
   arbitrary = Corpus <$> elements (fromCorpus @corpus)
   shrink (Corpus x) = Corpus <$> takeWhile (/= x) (fromCorpus @corpus)
 
-newtype Range (a :: Nat) (b :: Nat) x = Range x
+newtype Range (a :: Nat) (b :: Nat) x = Range { getRange :: x }
+  deriving (Show, Eq)
 
 -- | Modifier to return a random element in inclusive range
 --
@@ -88,9 +90,11 @@ newtype Range (a :: Nat) (b :: Nat) x = Range x
 --  deriving stock (Show, Eq, Generic)
 --  deriving (Arbitrary) via ((Text, Range 0 100 Int) `Isomorphic` Person)
 -- @
-instance (KnownNat a, KnownNat b, Integral x) => Arbitrary (Range a b x) where
+instance (KnownNat a, KnownNat b, Integral x, Num x) => Arbitrary (Range a b x) where
   arbitrary = Range . fromIntegral <$> choose (natVal (Proxy @a), natVal (Proxy @b))
-  shrink (Range x) = Range <$> shrunk
+  shrink (Range x) = Range . (+ from) <$> shrinkIntegral (x - from)
+    where
+      from = fromIntegral (natVal (Proxy @a))
     where
       shrunk = [ x'
                | x' <- shrinkIntegral x
