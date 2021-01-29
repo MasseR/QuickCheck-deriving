@@ -2,6 +2,26 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-|
+Module      : Text.QuickCheck.Deriving
+Description : Arbitrary instance for isomorphic types
+Copyright   : (c) Mats Rauhala, 2020
+License     : BSD-3
+Maintainer  : mats.rauhala@iki.fi
+Stability   : experimental
+Portability : POSIX
+
+Arbitrary instance for values that are isomorphic.
+
+@
+data Person
+  = Person { name :: String
+           , age :: Int
+           }
+  deriving stock (Show, Eq, Generic)
+  deriving Arbitrary via ((PrintableString, Positive Int) `Isomorphic` Person)
+@
+-}
 module Test.QuickCheck.Deriving
   ( Isomorphic(..) )
   where
@@ -12,9 +32,10 @@ import Data.Coerce
 
 import Test.QuickCheck
 
+-- | Two values are isomorphic when @a `Isomorphic` b@
 newtype Isomorphic a b = Isomorphic b
 
-
+-- | Two types are coercible if their 'Generic' representations are coercible
 type GenericCoercible a b =
   ( Generic a
   , Generic b
