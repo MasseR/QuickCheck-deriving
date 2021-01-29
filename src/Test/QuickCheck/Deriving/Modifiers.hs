@@ -1,9 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-|
 Module      : Text.QuickCheck.Deriving.Modifiers
 Description : Modifiers to QuickCheck generation
@@ -19,6 +20,7 @@ module Test.QuickCheck.Deriving.Modifiers
   ( PrintableText(..)
   , Corpus(..)
   , Range(..)
+  , DayRange(..)
   )
   where
 
@@ -32,6 +34,11 @@ import Test.QuickCheck
 import Data.Text
        (Text)
 import qualified Data.Text as T
+
+import Data.Time
+       (Day(..))
+import Data.Time.Calendar
+       (addDays, diffDays, fromGregorian)
 
 -- Still finding the design space for this
 
@@ -81,7 +88,7 @@ instance (FromCorpus corpus) => Arbitrary (Corpus corpus) where
 newtype Range (a :: Nat) (b :: Nat) x = Range { getRange :: x }
   deriving (Show, Eq)
 
--- | Modifier to return a random element in inclusive range
+-- | Modifier to return a random number in inclusive range
 --
 -- Return a random 'Integral' value that is within the inclusive range of a to b
 --
@@ -95,9 +102,34 @@ instance (KnownNat a, KnownNat b, Integral x, Num x) => Arbitrary (Range a b x) 
   shrink (Range x) = Range . (+ from) <$> shrinkIntegral (x - from)
     where
       from = fromIntegral (natVal (Proxy @a))
+
+-- | Modifier to return a random date in inclusive range
+--
+-- Return a random 'Date' value that is within the inclusive range of 'from' to 'to'
+--
+-- @
+-- data Person = Person { name :: Text, born :: Day }
+--  deriving stock (Show, Eq, Generic)
+--  deriving (Arbitrary) via ((Text, DateRange (1980 10 23) (2000 01 01)) `Isomorphic` Person)
+-- @
+newtype DayRange (from :: (Nat, Nat, Nat)) (to :: (Nat, Nat, Nat)) = DayRange { getDayRange :: Day }
+  deriving (Show, Eq)
+
+instance
+  ( KnownNat y
+  , KnownNat m
+  , KnownNat d
+  , KnownNat y'
+  , KnownNat m'
+  , KnownNat d'
+  , '(y,m,d) ~ from
+  , '(y',m',d') ~ to
+  ) => Arbitrary (DayRange from to) where
+  arbitrary = DayRange . (`addDays` from) <$> choose (0, diff)
     where
-      shrunk = [ x'
-               | x' <- shrinkIntegral x
-               , x' >= fromIntegral (natVal (Proxy @a))
-               , x' <= fromIntegral (natVal (Proxy @b))
-               ]
+      diff = diffDays to from
+      from = fromGregorian (natVal (Proxy @y)) (fromIntegral (natVal (Proxy @m))) (fromIntegral (natVal (Proxy @d)))
+      to = fromGregorian (natVal (Proxy @y')) (fromIntegral (natVal (Proxy @m'))) (fromIntegral (natVal (Proxy @d')))
+  shrink (DayRange x) = DayRange <$> shrinkMap (`addDays` from) (`diffDays` from) x
+    where
+      from = fromGregorian (natVal (Proxy @y)) (fromIntegral (natVal (Proxy @m))) (fromIntegral (natVal (Proxy @d)))
