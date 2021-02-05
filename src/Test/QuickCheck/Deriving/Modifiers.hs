@@ -21,8 +21,15 @@ module Test.QuickCheck.Deriving.Modifiers
   , Corpus(..)
   , Range(..)
   , DayRange(..)
+  -- * Lenses
+  , _PrintableText
+  , _Corpus
+  , _Range
+  , _DayRange
   )
   where
+
+import Control.Lens (Iso', iso)
 
 import Data.Proxy
        (Proxy(..))
@@ -54,6 +61,10 @@ import Data.Time.Calendar
 newtype PrintableText = PrintableText { getPrintableText :: Text }
   deriving (Show, Eq)
 
+-- | Lens for accessing 'PrintableText'
+_PrintableText :: Iso' Text PrintableText
+_PrintableText = iso PrintableText getPrintableText
+
 instance Arbitrary PrintableText where
   arbitrary = PrintableText . T.pack . getPrintableString <$> arbitrary
   shrink (PrintableText t) = PrintableText . T.pack . getPrintableString <$> shrink (PrintableString (T.unpack t))
@@ -71,6 +82,10 @@ instance Arbitrary PrintableText where
 newtype Corpus (corpus :: [Symbol]) = Corpus { getCorpus :: Text }
   deriving (Show, Eq)
 
+-- | Lens for accessing 'Corpus'
+_Corpus :: Iso' Text (Corpus corpus)
+_Corpus = iso Corpus getCorpus
+
 -- | A class for converting a type level list of symbols into a value level list of text
 class FromCorpus (a :: [Symbol]) where
   fromCorpus :: [Text]
@@ -87,6 +102,10 @@ instance (FromCorpus corpus) => Arbitrary (Corpus corpus) where
 
 newtype Range (a :: Nat) (b :: Nat) x = Range { getRange :: x }
   deriving (Show, Eq)
+
+-- | Lens for accessing 'Range'
+_Range :: Iso' x (Range a b x)
+_Range = iso Range getRange
 
 -- | Modifier to return a random number in inclusive range
 --
@@ -114,6 +133,9 @@ instance (KnownNat a, KnownNat b, Integral x, Num x) => Arbitrary (Range a b x) 
 -- @
 newtype DayRange (from :: (Nat, Nat, Nat)) (to :: (Nat, Nat, Nat)) = DayRange { getDayRange :: Day }
   deriving (Show, Eq)
+
+_DayRange :: Iso' Day (DayRange from to)
+_DayRange = iso DayRange getDayRange
 
 instance
   ( KnownNat y
