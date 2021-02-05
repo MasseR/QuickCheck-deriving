@@ -50,3 +50,10 @@ instance (GenericCoercible a b, Arbitrary a) => Arbitrary (Isomorphic a b) where
   arbitrary = Isomorphic . genericCoerce @a @b <$> arbitrary
   shrink (Isomorphic b) =
     Isomorphic . genericCoerce @a @b <$> shrink (genericCoerce @b @a b)
+
+-- This doesn't necessarily belong in this package, but it's too useful to not include it
+instance (GenericCoercible a b, Semigroup a) => Semigroup (Isomorphic a b) where
+  Isomorphic a <> Isomorphic b = Isomorphic (genericCoerce @a @b (genericCoerce a <> genericCoerce b))
+
+instance (GenericCoercible a b, Monoid a) => Monoid (Isomorphic a b) where
+  mempty = Isomorphic (genericCoerce @a @b mempty)
