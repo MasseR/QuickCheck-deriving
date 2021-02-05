@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -29,7 +30,10 @@ module Test.QuickCheck.Deriving.Modifiers
   )
   where
 
-import Control.Lens (Iso', iso)
+import Control.Lens
+       (Iso', from, iso, view)
+import Data.Text.Strict.Lens
+       (packed)
 
 import Data.Proxy
        (Proxy(..))
@@ -46,6 +50,9 @@ import Data.Time
        (Day(..))
 import Data.Time.Calendar
        (addDays, diffDays, fromGregorian)
+
+shrinkIso :: Arbitrary a => Iso' a b -> b -> [b]
+shrinkIso i = shrinkMap (view i) (view (from i))
 
 -- Still finding the design space for this
 
@@ -66,8 +73,8 @@ _PrintableText :: Iso' Text PrintableText
 _PrintableText = iso PrintableText getPrintableText
 
 instance Arbitrary PrintableText where
-  arbitrary = PrintableText . T.pack . getPrintableString <$> arbitrary
-  shrink (PrintableText t) = PrintableText . T.pack . getPrintableString <$> shrink (PrintableString (T.unpack t))
+  arbitrary = PrintableText . T.pack <$> fmap getPrintableString arbitrary
+  shrink = shrinkIso (packed . _PrintableText)
 
 -- | Modifier to return a random element of a text corpus
 --
@@ -118,9 +125,9 @@ _Range = iso Range getRange
 -- @
 instance (KnownNat a, KnownNat b, Integral x, Num x) => Arbitrary (Range a b x) where
   arbitrary = Range . fromIntegral <$> choose (natVal (Proxy @a), natVal (Proxy @b))
-  shrink (Range x) = Range . (+ from) <$> shrinkIntegral (x - from)
+  shrink (Range x) = Range . (+ start) <$> shrinkIntegral (x - start)
     where
-      from = fromIntegral (natVal (Proxy @a))
+      start = fromIntegral (natVal (Proxy @a))
 
 -- | Modifier to return a random date in inclusive range
 --
@@ -147,11 +154,11 @@ instance
   , '(y,m,d) ~ from
   , '(y',m',d') ~ to
   ) => Arbitrary (DayRange from to) where
-  arbitrary = DayRange . (`addDays` from) <$> choose (0, diff)
+  arbitrary = DayRange . (`addDays` start) <$> choose (0, diff)
     where
-      diff = diffDays to from
-      from = fromGregorian (natVal (Proxy @y)) (fromIntegral (natVal (Proxy @m))) (fromIntegral (natVal (Proxy @d)))
-      to = fromGregorian (natVal (Proxy @y')) (fromIntegral (natVal (Proxy @m'))) (fromIntegral (natVal (Proxy @d')))
-  shrink (DayRange x) = DayRange <$> shrinkMap (`addDays` from) (`diffDays` from) x
+      diff = diffDays end start
+      start = fromGregorian (natVal (Proxy @y)) (fromIntegral (natVal (Proxy @m))) (fromIntegral (natVal (Proxy @d)))
+      end = fromGregorian (natVal (Proxy @y')) (fromIntegral (natVal (Proxy @m'))) (fromIntegral (natVal (Proxy @d')))
+  shrink (DayRange x) = DayRange <$> shrinkMap (`addDays` start) (`diffDays` start) x
     where
-      from = fromGregorian (natVal (Proxy @y)) (fromIntegral (natVal (Proxy @m))) (fromIntegral (natVal (Proxy @d)))
+      start = fromGregorian (natVal (Proxy @y)) (fromIntegral (natVal (Proxy @m))) (fromIntegral (natVal (Proxy @d)))
