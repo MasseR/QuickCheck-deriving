@@ -19,11 +19,13 @@ Modifiers for QuickCheck generation
 -}
 module Test.QuickCheck.Deriving.Modifiers
   ( PrintableText(..)
+  , ASCIIText(..)
   , Corpus(..)
   , Range(..)
   , DayRange(..)
   -- * Lenses
   , _PrintableText
+  , _ASCIIText
   , _Corpus
   , _Range
   , _DayRange
@@ -75,6 +77,26 @@ _PrintableText = iso PrintableText getPrintableText
 instance Arbitrary PrintableText where
   arbitrary = PrintableText . T.pack <$> fmap getPrintableString arbitrary
   shrink = shrinkIso (packed . _PrintableText)
+
+-- | Modifier to return ascii 'Text'
+--
+-- Same as 'ASCIIString' but for 'Text' instead
+--
+-- @
+-- data Person = Person { name :: Text, age :: Int }
+--  deriving stock (Show, Eq, Generic)
+--  deriving (Arbitrary) via ((ASCIIText, Int) `Isomorphic` Person)
+-- @
+newtype ASCIIText = ASCIIText { getASCIIText :: Text }
+  deriving (Show, Eq)
+
+-- | Lens for accessing 'ASCIIText'
+_ASCIIText :: Iso' Text ASCIIText
+_ASCIIText = iso ASCIIText getASCIIText
+
+instance Arbitrary ASCIIText where
+  arbitrary = ASCIIText . T.pack <$> fmap getASCIIString arbitrary
+  shrink = shrinkIso (packed . _ASCIIText)
 
 -- | Modifier to return a random element of a text corpus
 --
