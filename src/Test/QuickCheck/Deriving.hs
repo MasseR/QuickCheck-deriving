@@ -24,6 +24,8 @@ data Person
 -}
 module Test.QuickCheck.Deriving
   ( Isomorphic(..)
+  -- * Re-exports
+  , Arbitrary(..)
   )
   where
 
