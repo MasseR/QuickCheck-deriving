@@ -22,13 +22,14 @@ module Test.QuickCheck.Deriving.Modifiers
   , ASCIIText(..)
   , Corpus(..)
   , Range(..)
-  , DayRange(..)
+  , UTCRange(..)
   -- * Lenses
   , _PrintableText
   , _ASCIIText
   , _Corpus
   , _Range
   , _DayRange
+  , _UTCRange
   )
   where
 
@@ -49,7 +50,7 @@ import Data.Text
 import qualified Data.Text as T
 
 import Data.Time
-       (Day(..))
+       (Day(..), UTCTime(..))
 import Data.Time.Calendar
        (addDays, diffDays, fromGregorian)
 
@@ -184,3 +185,43 @@ instance
   shrink (DayRange x) = DayRange <$> shrinkMap (`addDays` start) (`diffDays` start) x
     where
       start = fromGregorian (natVal (Proxy @y)) (fromIntegral (natVal (Proxy @m))) (fromIntegral (natVal (Proxy @d)))
+
+-- | Modifier to return a random time in inclusive range
+--
+-- Return a random 'UTCTime' value that is within the inclusive range of 'from' to 'to'
+--
+-- @
+-- data Person = Person { name :: Text, born :: Day }
+--  deriving stock (Show, Eq, Generic)
+--  deriving (Arbitrary) via ((Text, UTCTime (1980 10 23 0) (2000 01 01 300)) `Isomorphic` Person)
+-- @
+newtype UTCRange (from :: (Nat, Nat, Nat, Nat)) (to :: (Nat, Nat, Nat, Nat)) = UTCRange { getUTCRange :: UTCTime }
+  deriving (Show, Eq)
+
+_UTCRange :: Iso' UTCTime (UTCRange from to)
+_UTCRange = iso UTCRange getUTCRange
+
+instance
+  ( KnownNat y
+  , KnownNat m
+  , KnownNat d
+  , KnownNat s
+  , KnownNat y'
+  , KnownNat m'
+  , KnownNat d'
+  , KnownNat s'
+  , '(y,m,d,s) ~ from
+  , '(y',m',d',s') ~ to
+  ) => Arbitrary (UTCRange from to) where
+  arbitrary = UTCRange <$> (UTCTime <$> genDay <*> genTime)
+    where
+      genDay = fmap (getDayRange @'(y,m,d) @'(y',m',d')) arbitrary
+      genTime = fmap (fromInteger . getRange @s @s') arbitrary
+  shrink (UTCRange (UTCTime d t)) =
+    UTCRange <$>
+      [UTCTime d' t | DayRange d' <- shrink (DayRange @'(y,m,d) @'(y',m',d') d)] ++
+      [UTCTime d (fromInteger t') | Range t' <- shrink (Range @s @s' (floor t))] ++
+      [ UTCTime d' (fromInteger t')
+      | DayRange d' <- shrink (DayRange @'(y,m,d) @'(y',m',d') d)
+      , Range t' <- shrink (Range @s @s' (floor t))
+      ]
